@@ -7,7 +7,7 @@ import { initializeApp } from "firebase/app";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDj4aWJEhtRgL_CRVFmo_ztL0CHF8_XrMg",
+  apiKey: "your key here",
   authDomain: "flashcard-saas-f94e5.firebaseapp.com",
   projectId: "flashcard-saas-f94e5",
   storageBucket: "flashcard-saas-f94e5.appspot.com",
