@@ -4,6 +4,7 @@ import {
   SignedIn,
   SignedOut,
   UserButton,
+  useUser,
 } from '@clerk/nextjs';
 import { Toolbar, Typography, Button } from '@mui/material';
 

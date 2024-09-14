@@ -1,4 +1,7 @@
 'use client';
+import db from '../../firebase.js';
+import { doc, collection, getDoc, setDoc } from 'firebase/firestore';
+import { useUser, useAuth } from '@clerk/nextjs';
 
 import { useState } from 'react';
 import {
@@ -18,6 +21,7 @@ import {
 } from '@mui/material';
 
 export default function Generate() {
+  const { user } = useUser();
   const [text, setText] = useState('');
   const [flashcards, setFlashcards] = useState([]);
 
@@ -62,39 +66,42 @@ export default function Generate() {
 
   // function to save flashcards to Firebase
   const saveFlashcards = async () => {
-    if (!deckname.trim()) {
-      alert('Please enter a name for your flashcard set.');
-      return;
-    }
+    if (!user) return; // Ensure the user is logged in
+
+    const userId = user.id; // Get Clerk's user ID
+    const userDocRef = doc(db, 'users', userId); // Reference to the Firestore document for the user
 
     try {
-      const userDocRef = doc(collection(db, 'users'), user.id);
-      const userDocSnap = await getDoc(userDocRef);
+      // Check if the user exists in Firestore
+      const userSnapshot = await getDoc(userDocRef);
 
-      const batch = writeBatch(db);
-
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        const updatedSets = [
-          ...(userData.flashcardSets || []),
-          { name: deckname },
-        ];
-        batch.update(userDocRef, { flashcardSets: updatedSets });
-      } else {
-        batch.set(userDocRef, { flashcardSets: [{ name: deckname }] });
+      // If the user doesn't exist, create the user in Firestore
+      if (!userSnapshot.exists()) {
+        await setDoc(userDocRef, {
+          name: user.fullName, // Save user details from Clerk
+          email: user.emailAddresses[0].emailAddress, // Clerk stores email in an array
+          createdAt: new Date(),
+        });
+        console.log('User created in Firestore.');
       }
 
-      const setDocRef = doc(collection(userDocRef, 'flashcardSets'), deckname);
-      batch.set(setDocRef, { flashcards });
+      // Save the list of flashcards to the user's document
+      const flashcardsRef = collection(userDocRef, 'flashcards'); // Sub-collection of flashcards for the user
 
-      await batch.commit();
+      // Batch save flashcards
+      for (const card of flashcards) {
+        const newFlashcardRef = doc(flashcardsRef); // Auto-generate an ID for the flashcard
+        await setDoc(newFlashcardRef, {
+          front: card.front,
+          back: card.back,
+          createdAt: new Date(),
+        });
+      }
 
-      alert('Flashcards saved successfully!');
+      console.log('Flashcards saved successfully!');
       handleCloseDialog();
-      setDeckname('');
     } catch (error) {
-      console.error('Error saving flashcards:', error);
-      alert('An error occurred while saving flashcards. Please try again.');
+      console.error('Error saving flashcards: ', error);
     }
   };
 
@@ -174,7 +181,7 @@ export default function Generate() {
             type='text'
             fullWidth
             value={deckname}
-            onChange={(e) => setSetName(e.target.value)}
+            onChange={(e) => setDeckname(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
